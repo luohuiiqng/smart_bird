@@ -144,3 +144,27 @@
 - 命令：`npm run test:e2e`
 - 结果：`7 suites / 15 tests` 全通过。
 - 覆盖链路：auth、org、exam、marking、scores、analysis、files、audit。
+
+---
+
+## 十、角色端到端联调清单（新增）
+
+### 1) 管理员主链路（必须通过）
+- 登录并校验 `me` 信息（学校作用域正确）
+- 创建年级/班级/科目
+- 创建考试并配置考试科目
+- 执行成绩重算（允许无学生场景）
+- 上传文件（二进制）-> 查询详情 -> 获取预签名 -> 删除文件
+- 查询审计日志并确认存在 `files` 模块操作记录
+
+### 2) 教师链路（可选但建议）
+- 教师登录并校验 `me` 信息
+- 教师访问审计日志接口应返回 `403`
+
+### 3) 一键冒烟脚本
+- 脚本：`scripts/smoke-role-flow.sh`
+- 默认管理员账号：`schooladmin / Schooladmin123`
+- 可选教师环境变量：`TEACHER_USERNAME`、`TEACHER_PASSWORD`
+- 示例命令：
+  - `bash scripts/smoke-role-flow.sh`
+  - `BASE_URL=http://localhost:3001/api/v1 TEACHER_USERNAME=teacher01 TEACHER_PASSWORD=Teacher123 bash scripts/smoke-role-flow.sh`
