@@ -67,6 +67,14 @@
 - 职责：定义 CI/CD 流程（GitHub Actions）、分支策略、环境与密钥约定。
 - 不包含：业务接口契约、服务器底层运维手册。
 
+### 14) `14-go-live-checklist-two-weeks.md`
+- 职责：定义上线前两周按天执行的联调、验收、发布与回滚清单。
+- 不包含：接口字段细节与底层运维命令手册。
+
+### 15) `15-go-no-go-meeting-template.md`
+- 职责：定义上线决策会议输入材料、评审清单与结论模板。
+- 不包含：代码实现细节与运维执行命令。
+
 ## 当前进度快照（2026-05-01）
 - 后端 MVP 模块已全部落地：`auth/org/exam/marking/scores/analysis/files/audit`。
 - 最近一次联调冒烟：`apps/api` 下执行 `npm run test:e2e`，`7 suites / 15 tests` 全通过。
@@ -88,3 +96,5 @@
 11. `11-files-audit-module-spec.md`（明确文件与审计模块接口细节）
 12. `12-delivery-plan-mvp.md`（明确交付计划与验收路径）
 13. `13-ci-cd-spec.md`（明确 CI/CD 与环境密钥约定）
+14. `14-go-live-checklist-two-weeks.md`（按天执行上线前两周计划）
+15. `15-go-no-go-meeting-template.md`（上线决策会模板）
