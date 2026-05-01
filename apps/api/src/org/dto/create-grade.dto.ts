@@ -1,0 +1,16 @@
+import { EntityStatus } from '@prisma/client';
+import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+
+export class CreateGradeDto {
+  @IsString()
+  @MinLength(2)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  stage?: string;
+
+  @IsOptional()
+  @IsEnum(EntityStatus)
+  status?: EntityStatus;
+}

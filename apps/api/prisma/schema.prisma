@@ -29,6 +29,9 @@ model School {
   status    EntityStatus   @default(ENABLED) @map("status")
   createdAt DateTime       @default(now()) @map("created_at")
   users     User[]
+  grades    Grade[]
+  classes   Class[]
+  subjects  Subject[]
 
   @@map("schools")
 }
@@ -50,4 +53,50 @@ model User {
 
   @@index([schoolId], map: "users_school_id_idx")
   @@map("users")
+}
+
+model Grade {
+  id        Int          @id @default(autoincrement()) @map("id")
+  schoolId  Int          @map("school_id")
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  name      String       @map("name")
+  stage     String?      @map("stage")
+  status    EntityStatus @default(ENABLED) @map("status")
+  createdAt DateTime     @default(now()) @map("created_at")
+  classes   Class[]
+
+  @@unique([schoolId, name], map: "grades_school_id_name_key")
+  @@index([schoolId], map: "grades_school_id_idx")
+  @@map("grades")
+}
+
+model Class {
+  id        Int          @id @default(autoincrement()) @map("id")
+  schoolId  Int          @map("school_id")
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  gradeId   Int          @map("grade_id")
+  grade     Grade        @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  name      String       @map("name")
+  status    EntityStatus @default(ENABLED) @map("status")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([gradeId, name], map: "classes_grade_id_name_key")
+  @@index([schoolId], map: "classes_school_id_idx")
+  @@index([gradeId], map: "classes_grade_id_idx")
+  @@map("classes")
+}
+
+model Subject {
+  id        Int          @id @default(autoincrement()) @map("id")
+  schoolId  Int          @map("school_id")
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  name      String       @map("name")
+  shortName String?      @map("short_name")
+  type      String?      @map("type")
+  status    EntityStatus @default(ENABLED) @map("status")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([schoolId, name], map: "subjects_school_id_name_key")
+  @@index([schoolId], map: "subjects_school_id_idx")
+  @@map("subjects")
 }
