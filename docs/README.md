@@ -70,7 +70,8 @@
 ## 当前进度快照（2026-05-01）
 - 后端 MVP 模块已全部落地：`auth/org/exam/marking/scores/analysis/files/audit`。
 - 最近一次联调冒烟：`apps/api` 下执行 `npm run test:e2e`，`7 suites / 15 tests` 全通过。
-- 当前建议工作重点：前端管理端页面接入与端到端角色联调。
+- 前端管理端页面已完成接入：`org/exam/marking/scores/analysis/files/audit`。
+- 当前建议工作重点：端到端角色联调 + 文件真实上传链路（MinIO）打通 + 页面体验优化。
 
 ## 阅读顺序建议
 0. `00-development-standards.md`（开发与界面底线，编码前必读）
