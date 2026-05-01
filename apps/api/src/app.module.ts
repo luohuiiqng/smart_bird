@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SchoolsModule } from './schools/schools.module';
 import { OrgModule } from './org/org.module';
+import { ExamsModule } from './exams/exams.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { OrgModule } from './org/org.module';
     UsersModule,
     SchoolsModule,
     OrgModule,
+    ExamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

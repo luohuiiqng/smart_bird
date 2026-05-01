@@ -22,6 +22,13 @@ enum EntityStatus {
   DISABLED
 }
 
+enum ExamStatus {
+  CREATED
+  MARKING
+  PENDING_PUBLISH
+  PUBLISHED
+}
+
 model School {
   id        Int            @id @default(autoincrement()) @map("id")
   name      String         @map("name")
@@ -34,6 +41,7 @@ model School {
   subjects  Subject[]
   teachers  Teacher[]
   students  Student[]
+  exams     Exam[]
 
   @@map("schools")
 }
@@ -83,6 +91,7 @@ model Class {
   status    EntityStatus @default(ENABLED) @map("status")
   createdAt DateTime     @default(now()) @map("created_at")
   students  Student[]
+  examClasses ExamClass[]
 
   @@unique([gradeId, name], map: "classes_grade_id_name_key")
   @@index([schoolId], map: "classes_school_id_idx")
@@ -99,6 +108,7 @@ model Subject {
   type      String?      @map("type")
   status    EntityStatus @default(ENABLED) @map("status")
   createdAt DateTime     @default(now()) @map("created_at")
+  examSubjects ExamSubject[]
 
   @@unique([schoolId, name], map: "subjects_school_id_name_key")
   @@index([schoolId], map: "subjects_school_id_idx")
@@ -139,4 +149,51 @@ model Student {
   @@index([gradeId], map: "students_grade_id_idx")
   @@index([classId], map: "students_class_id_idx")
   @@map("students")
+}
+
+model Exam {
+  id        Int        @id @default(autoincrement()) @map("id")
+  schoolId  Int        @map("school_id")
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  name      String     @map("name")
+  examType  String     @map("exam_type")
+  startDate DateTime   @map("start_date")
+  endDate   DateTime   @map("end_date")
+  status    ExamStatus @default(CREATED) @map("status")
+  createdBy Int        @map("created_by")
+  createdAt DateTime   @default(now()) @map("created_at")
+  examClasses ExamClass[]
+  examSubjects ExamSubject[]
+
+  @@index([schoolId], map: "exams_school_id_idx")
+  @@index([status], map: "exams_status_idx")
+  @@index([startDate, endDate], map: "exams_date_idx")
+  @@map("exams")
+}
+
+model ExamClass {
+  id        Int      @id @default(autoincrement()) @map("id")
+  examId    Int      @map("exam_id")
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  classId   Int      @map("class_id")
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([examId, classId], map: "exam_classes_exam_id_class_id_key")
+  @@index([classId], map: "exam_classes_class_id_idx")
+  @@map("exam_classes")
+}
+
+model ExamSubject {
+  id        Int      @id @default(autoincrement()) @map("id")
+  examId    Int      @map("exam_id")
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subjectId Int      @map("subject_id")
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  fullScore Int      @map("full_score")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([examId, subjectId], map: "exam_subjects_exam_id_subject_id_key")
+  @@index([subjectId], map: "exam_subjects_subject_id_idx")
+  @@map("exam_subjects")
 }
