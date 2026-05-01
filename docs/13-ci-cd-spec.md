@@ -18,10 +18,9 @@
 
 ## 一、代码托管
 
-- 主仓库建议托管在 GitHub，维护者账号：<https://github.com/luohuiiqng/>
+- **本仓库地址**：<https://github.com/luohuiiqng/smart_bird>
+- 维护者账号：<https://github.com/luohuiiqng/>
 - 流水线实现首选 **GitHub Actions**（官方文档：<https://docs.github.com/en/actions>）。
-
-> 说明：实际仓库 URL 以创建仓库后的地址为准；本节仅固定「工具链选型」，不写死仓库名。
 
 ---
 
