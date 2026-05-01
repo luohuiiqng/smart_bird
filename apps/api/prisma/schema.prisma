@@ -29,6 +29,13 @@ enum ExamStatus {
   PUBLISHED
 }
 
+enum MarkingTaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  LOCKED
+}
+
 model School {
   id        Int            @id @default(autoincrement()) @map("id")
   name      String         @map("name")
@@ -43,6 +50,7 @@ model School {
   students  Student[]
   exams     Exam[]
   auditLogs AuditLog[]
+  markingTasks MarkingTask[]
 
   @@map("schools")
 }
@@ -62,6 +70,7 @@ model User {
   lastLoginAt  DateTime?    @map("last_login_at")
   createdAt    DateTime     @default(now()) @map("created_at")
   auditLogs    AuditLog[]
+  markingTasks MarkingTask[] @relation("MarkingTaskAssignee")
 
   @@index([schoolId], map: "users_school_id_idx")
   @@map("users")
@@ -167,6 +176,7 @@ model Exam {
   deletedAt DateTime?  @map("deleted_at")
   examClasses ExamClass[]
   examSubjects ExamSubject[]
+  markingTasks MarkingTask[]
 
   @@index([schoolId], map: "exams_school_id_idx")
   @@index([status], map: "exams_status_idx")
@@ -197,10 +207,52 @@ model ExamSubject {
   fullScore Int      @map("full_score")
   markingCompletedAt DateTime? @map("marking_completed_at")
   createdAt DateTime @default(now()) @map("created_at")
+  markingTasks MarkingTask[]
 
   @@unique([examId, subjectId], map: "exam_subjects_exam_id_subject_id_key")
   @@index([subjectId], map: "exam_subjects_subject_id_idx")
   @@map("exam_subjects")
+}
+
+model MarkingTask {
+  id            Int               @id @default(autoincrement()) @map("id")
+  schoolId      Int               @map("school_id")
+  school        School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  examId        Int               @map("exam_id")
+  exam          Exam              @relation(fields: [examId], references: [id], onDelete: Restrict)
+  examSubjectId Int               @map("exam_subject_id")
+  examSubject   ExamSubject       @relation(fields: [examSubjectId], references: [id], onDelete: Restrict)
+  teacherId     Int               @map("teacher_id")
+  teacher       User              @relation("MarkingTaskAssignee", fields: [teacherId], references: [id], onDelete: Restrict)
+  status        MarkingTaskStatus @default(TODO) @map("status")
+  startedAt     DateTime?         @map("started_at")
+  finishedAt    DateTime?         @map("finished_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  entries       MarkingTaskEntry[]
+
+  @@unique([examSubjectId, teacherId], map: "marking_tasks_exam_subject_id_teacher_id_key")
+  @@index([schoolId], map: "marking_tasks_school_id_idx")
+  @@index([examId], map: "marking_tasks_exam_id_idx")
+  @@index([status], map: "marking_tasks_status_idx")
+  @@map("marking_tasks")
+}
+
+model MarkingTaskEntry {
+  id            Int         @id @default(autoincrement()) @map("id")
+  taskId        Int         @map("task_id")
+  task          MarkingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  studentId     Int         @map("student_id")
+  scores        Json?       @map("scores")
+  totalScore    Decimal?    @db.Decimal(8, 2) @map("total_score")
+  finalSubmitted Boolean    @default(false) @map("final_submitted")
+  submittedAt   DateTime?   @map("submitted_at")
+  version       Int         @default(0) @map("version")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([taskId, studentId], map: "marking_task_entries_task_id_student_id_key")
+  @@index([studentId], map: "marking_task_entries_student_id_idx")
+  @@index([finalSubmitted], map: "marking_task_entries_final_submitted_idx")
+  @@map("marking_task_entries")
 }
 
 model AuditLog {
