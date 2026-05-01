@@ -10,13 +10,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BatchCreateClassesDto } from './dto/batch-create-classes.dto';
 import { CreateClassDto } from './dto/create-class.dto';
 import { CreateGradeDto } from './dto/create-grade.dto';
+import { CreateStudentDto } from './dto/create-student.dto';
 import { CreateSubjectDto } from './dto/create-subject.dto';
+import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { QueryClassesDto } from './dto/query-classes.dto';
 import { QueryGradesDto } from './dto/query-grades.dto';
+import { QueryStudentsDto } from './dto/query-students.dto';
 import { QuerySubjectsDto } from './dto/query-subjects.dto';
+import { QueryTeachersDto } from './dto/query-teachers.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
+import { UpdateTeacherDto } from './dto/update-teacher.dto';
 
 @Injectable()
 export class OrgService {
@@ -343,6 +349,216 @@ export class OrgService {
     return true;
   }
 
+  async listTeachers(currentUser: AuthenticatedUser, query: QueryTeachersDto) {
+    const schoolId = this.resolveSchoolScope(currentUser);
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const where: Prisma.TeacherWhereInput = {
+      ...(schoolId ? { schoolId } : {}),
+      ...(query.keyword
+        ? {
+            OR: [
+              { name: { contains: query.keyword, mode: 'insensitive' } },
+              { phone: { contains: query.keyword, mode: 'insensitive' } },
+              { email: { contains: query.keyword, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.teacher.findMany({
+        where,
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.teacher.count({ where }),
+    ]);
+
+    return { list, total, page, pageSize };
+  }
+
+  async createTeacher(currentUser: AuthenticatedUser, dto: CreateTeacherDto) {
+    const schoolId = this.requireSchoolId(currentUser);
+
+    try {
+      return await this.prisma.teacher.create({
+        data: {
+          schoolId,
+          name: dto.name,
+          gender: dto.gender,
+          phone: dto.phone,
+          email: dto.email,
+          status: dto.status ?? EntityStatus.ENABLED,
+        },
+      });
+    } catch (error: unknown) {
+      this.rethrowConflict(error);
+    }
+  }
+
+  async updateTeacher(
+    currentUser: AuthenticatedUser,
+    teacherId: number,
+    dto: UpdateTeacherDto,
+  ) {
+    const target = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      select: { id: true, schoolId: true },
+    });
+
+    if (!target) {
+      throw new NotFoundException('ORG_404');
+    }
+
+    this.ensureTenantAccess(currentUser, target.schoolId);
+
+    return this.prisma.teacher.update({
+      where: { id: teacherId },
+      data: {
+        name: dto.name,
+        gender: dto.gender,
+        phone: dto.phone,
+        email: dto.email,
+        status: dto.status,
+      },
+    });
+  }
+
+  async deleteTeacher(currentUser: AuthenticatedUser, teacherId: number) {
+    const target = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      select: { id: true, schoolId: true },
+    });
+
+    if (!target) {
+      throw new NotFoundException('ORG_404');
+    }
+
+    this.ensureTenantAccess(currentUser, target.schoolId);
+    await this.prisma.teacher.delete({ where: { id: teacherId } });
+    return true;
+  }
+
+  async listStudents(currentUser: AuthenticatedUser, query: QueryStudentsDto) {
+    const schoolId = this.resolveSchoolScope(currentUser);
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const where: Prisma.StudentWhereInput = {
+      ...(schoolId ? { schoolId } : {}),
+      ...(query.gradeId ? { gradeId: query.gradeId } : {}),
+      ...(query.classId ? { classId: query.classId } : {}),
+      ...(query.keyword
+        ? {
+            OR: [
+              { name: { contains: query.keyword, mode: 'insensitive' } },
+              { studentNo: { contains: query.keyword, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(query.status ? { status: query.status } : {}),
+    };
+
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.student.findMany({
+        where,
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          grade: { select: { id: true, name: true } },
+          class: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.student.count({ where }),
+    ]);
+
+    return { list, total, page, pageSize };
+  }
+
+  async createStudent(currentUser: AuthenticatedUser, dto: CreateStudentDto) {
+    const schoolId = this.requireSchoolId(currentUser);
+    await this.ensureGradeInScope(schoolId, dto.gradeId);
+    await this.ensureClassInScope(schoolId, dto.classId, dto.gradeId);
+
+    try {
+      return await this.prisma.student.create({
+        data: {
+          schoolId,
+          studentNo: dto.studentNo,
+          name: dto.name,
+          gender: dto.gender,
+          gradeId: dto.gradeId,
+          classId: dto.classId,
+          status: dto.status ?? EntityStatus.ENABLED,
+        },
+      });
+    } catch (error: unknown) {
+      this.rethrowConflict(error);
+    }
+  }
+
+  async updateStudent(
+    currentUser: AuthenticatedUser,
+    studentId: number,
+    dto: UpdateStudentDto,
+  ) {
+    const target = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, schoolId: true, gradeId: true },
+    });
+
+    if (!target) {
+      throw new NotFoundException('ORG_404');
+    }
+
+    this.ensureTenantAccess(currentUser, target.schoolId);
+    const schoolId = this.requireSchoolId(currentUser, target.schoolId);
+    const nextGradeId = dto.gradeId ?? target.gradeId;
+
+    if (dto.gradeId) {
+      await this.ensureGradeInScope(schoolId, dto.gradeId);
+    }
+    if (dto.classId) {
+      await this.ensureClassInScope(schoolId, dto.classId, nextGradeId);
+    }
+
+    try {
+      return await this.prisma.student.update({
+        where: { id: studentId },
+        data: {
+          studentNo: dto.studentNo,
+          name: dto.name,
+          gender: dto.gender,
+          gradeId: dto.gradeId,
+          classId: dto.classId,
+          status: dto.status,
+        },
+      });
+    } catch (error: unknown) {
+      this.rethrowConflict(error);
+    }
+  }
+
+  async deleteStudent(currentUser: AuthenticatedUser, studentId: number) {
+    const target = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, schoolId: true },
+    });
+
+    if (!target) {
+      throw new NotFoundException('ORG_404');
+    }
+
+    this.ensureTenantAccess(currentUser, target.schoolId);
+    await this.prisma.student.delete({ where: { id: studentId } });
+    return true;
+  }
+
   private resolveSchoolScope(
     currentUser: AuthenticatedUser,
   ): number | undefined {
@@ -394,6 +610,25 @@ export class OrgService {
     });
 
     if (!grade) {
+      throw new NotFoundException('ORG_404');
+    }
+  }
+
+  private async ensureClassInScope(
+    schoolId: number,
+    classId: number,
+    gradeId?: number,
+  ) {
+    const targetClass = await this.prisma.class.findFirst({
+      where: {
+        id: classId,
+        schoolId,
+        ...(gradeId ? { gradeId } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (!targetClass) {
       throw new NotFoundException('ORG_404');
     }
   }

@@ -32,6 +32,8 @@ model School {
   grades    Grade[]
   classes   Class[]
   subjects  Subject[]
+  teachers  Teacher[]
+  students  Student[]
 
   @@map("schools")
 }
@@ -64,6 +66,7 @@ model Grade {
   status    EntityStatus @default(ENABLED) @map("status")
   createdAt DateTime     @default(now()) @map("created_at")
   classes   Class[]
+  students  Student[]
 
   @@unique([schoolId, name], map: "grades_school_id_name_key")
   @@index([schoolId], map: "grades_school_id_idx")
@@ -79,6 +82,7 @@ model Class {
   name      String       @map("name")
   status    EntityStatus @default(ENABLED) @map("status")
   createdAt DateTime     @default(now()) @map("created_at")
+  students  Student[]
 
   @@unique([gradeId, name], map: "classes_grade_id_name_key")
   @@index([schoolId], map: "classes_school_id_idx")
@@ -99,4 +103,40 @@ model Subject {
   @@unique([schoolId, name], map: "subjects_school_id_name_key")
   @@index([schoolId], map: "subjects_school_id_idx")
   @@map("subjects")
+}
+
+model Teacher {
+  id        Int          @id @default(autoincrement()) @map("id")
+  schoolId  Int          @map("school_id")
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  name      String       @map("name")
+  gender    String?      @map("gender")
+  phone     String?      @map("phone")
+  email     String?      @map("email")
+  status    EntityStatus @default(ENABLED) @map("status")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@index([schoolId], map: "teachers_school_id_idx")
+  @@map("teachers")
+}
+
+model Student {
+  id        Int          @id @default(autoincrement()) @map("id")
+  schoolId  Int          @map("school_id")
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  studentNo String       @map("student_no")
+  name      String       @map("name")
+  gender    String?      @map("gender")
+  gradeId   Int          @map("grade_id")
+  grade     Grade        @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  classId   Int          @map("class_id")
+  class     Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
+  status    EntityStatus @default(ENABLED) @map("status")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([schoolId, studentNo], map: "students_school_id_student_no_key")
+  @@index([schoolId], map: "students_school_id_idx")
+  @@index([gradeId], map: "students_grade_id_idx")
+  @@index([classId], map: "students_class_id_idx")
+  @@map("students")
 }
