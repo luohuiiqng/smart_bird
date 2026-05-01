@@ -3,6 +3,7 @@ import { useAuth } from './auth/useAuth'
 import { AppShell } from './layout/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
+import { OrgPage } from './pages/OrgPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
 function ProtectedRoute() {
@@ -26,7 +27,7 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: 'org', element: <PlaceholderPage title="基础档案" /> },
+      { path: 'org', element: <OrgPage /> },
       { path: 'exam', element: <PlaceholderPage title="考试管理" /> },
       { path: 'marking', element: <PlaceholderPage title="阅卷任务" /> },
       { path: 'scores', element: <PlaceholderPage title="成绩查询" /> },

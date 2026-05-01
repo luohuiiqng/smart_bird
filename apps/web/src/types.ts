@@ -13,3 +13,13 @@ export type ApiResponse<T> = {
   message: string
   data: T
 }
+
+export type EntityStatus = 'ENABLED' | 'DISABLED'
+
+export type Grade = {
+  id: number
+  name: string
+  stage: string | null
+  status: EntityStatus
+  createdAt: string
+}
