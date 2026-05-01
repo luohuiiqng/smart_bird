@@ -40,3 +40,16 @@ export type Subject = {
   status: EntityStatus
   createdAt: string
 }
+
+export type ExamStatus = 'CREATED' | 'MARKING' | 'PENDING_PUBLISH' | 'PUBLISHED'
+
+export type Exam = {
+  id: number
+  name: string
+  examType: string
+  startDate: string
+  endDate: string
+  status: ExamStatus
+  createdBy: number
+  createdAt: string
+}

@@ -3,6 +3,8 @@ import type {
   ClassItem,
   CurrentUser,
   EntityStatus,
+  Exam,
+  ExamStatus,
   Grade,
   Subject,
 } from '../types'
@@ -141,5 +143,54 @@ export async function createSubject(payload: {
   return request<Subject>('/org/subjects', {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export async function listExams(params?: {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  examType?: string
+  status?: ExamStatus
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.examType) search.set('examType', params.examType)
+  if (params?.status) search.set('status', params.status)
+  const query = search.toString()
+  return request<{ list: Exam[]; total: number; page: number; pageSize: number }>(
+    `/exams${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function createExam(payload: {
+  name: string
+  examType: string
+  startDate: string
+  endDate: string
+  classIds: number[]
+}) {
+  return request<Exam>('/exams', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function setExamClasses(examId: number, classIds: number[]) {
+  return request<boolean>(`/exams/${examId}/classes`, {
+    method: 'POST',
+    body: JSON.stringify({ classIds }),
+  })
+}
+
+export async function setExamSubjects(
+  examId: number,
+  subjects: Array<{ subjectId: number; fullScore: number }>,
+) {
+  return request<boolean>(`/exams/${examId}/subjects`, {
+    method: 'POST',
+    body: JSON.stringify({ subjects }),
   })
 }

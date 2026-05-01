@@ -2,6 +2,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { useAuth } from './auth/useAuth'
 import { AppShell } from './layout/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
+import { ExamPage } from './pages/ExamPage'
 import { LoginPage } from './pages/LoginPage'
 import { OrgPage } from './pages/OrgPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
@@ -28,7 +29,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'org', element: <OrgPage /> },
-      { path: 'exam', element: <PlaceholderPage title="考试管理" /> },
+      { path: 'exam', element: <ExamPage /> },
       { path: 'marking', element: <PlaceholderPage title="阅卷任务" /> },
       { path: 'scores', element: <PlaceholderPage title="成绩查询" /> },
       { path: 'analysis', element: <PlaceholderPage title="统计分析" /> },
