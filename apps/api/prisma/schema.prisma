@@ -1,0 +1,52 @@
+// 与 docs/04-data-model-core.md 对齐的初版；后续迁移请走 prisma migrate。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// 与 docs/06 中 role 概念一致
+enum UserRole {
+  SYSTEM_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+}
+
+/// 学校 / 用户启用状态
+enum EntityStatus {
+  ENABLED
+  DISABLED
+}
+
+model School {
+  id        Int            @id @default(autoincrement()) @map("id")
+  name      String         @map("name")
+  code      String         @unique @map("code")
+  status    EntityStatus   @default(ENABLED) @map("status")
+  createdAt DateTime       @default(now()) @map("created_at")
+  users     User[]
+
+  @@map("schools")
+}
+
+model User {
+  id           Int          @id @default(autoincrement()) @map("id")
+  /// `SYSTEM_ADMIN` 可为空；校管理员与教师必须绑定学校（应用层校验）
+  schoolId     Int?         @map("school_id")
+  school       School?      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  username     String       @unique @map("username")
+  passwordHash String       @map("password_hash")
+  realName     String       @map("real_name")
+  phone        String?      @map("phone")
+  role         UserRole     @map("role")
+  status       EntityStatus @default(ENABLED) @map("status")
+  lastLoginAt  DateTime?    @map("last_login_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@index([schoolId], map: "users_school_id_idx")
+  @@map("users")
+}

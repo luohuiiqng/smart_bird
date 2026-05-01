@@ -63,3 +63,10 @@
 - 安全：密码哈希存储、最小权限、接口鉴权、操作留痕
 - 可用性：关键流程异常可追踪（日志与错误码）
 - 可扩展性：模块边界清晰，可逐步拆分服务
+
+## 六、本地开发（仓库已实现）
+
+- **依赖服务**：仓库根目录 `docker-compose.yml` 提供 PostgreSQL、Redis、MinIO；启动：`docker compose up -d`。
+- **环境变量**：复制根目录 `.env.example` 为 `.env`（勿提交），其中 `DATABASE_URL` 需与 compose 中 Postgres 一致。
+- **数据库迁移**：在 `apps/api` 目录执行 `npx prisma migrate dev`（开发）或 `npx prisma migrate deploy`（CI/生产）。
+- **API 服务**：在 `apps/api` 执行 `npm run start:dev`；全局路由前缀默认 `api/v1`（环境变量 `API_PREFIX`）；就绪检查：`GET /api/v1/health`（依赖数据库已迁移且可用）。
