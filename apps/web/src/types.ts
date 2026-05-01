@@ -53,3 +53,17 @@ export type Exam = {
   createdBy: number
   createdAt: string
 }
+
+export type MarkingTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'LOCKED'
+
+export type MarkingTask = {
+  id: number
+  examId: number
+  examSubjectId: number
+  teacherId: number
+  status: MarkingTaskStatus
+  startedAt: string | null
+  finishedAt: string | null
+  createdAt: string
+  entries: Array<{ id: number; studentId: number; finalSubmitted: boolean }>
+}

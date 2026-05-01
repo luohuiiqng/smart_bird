@@ -4,6 +4,7 @@ import { AppShell } from './layout/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { ExamPage } from './pages/ExamPage'
 import { LoginPage } from './pages/LoginPage'
+import { MarkingPage } from './pages/MarkingPage'
 import { OrgPage } from './pages/OrgPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
@@ -30,7 +31,7 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'org', element: <OrgPage /> },
       { path: 'exam', element: <ExamPage /> },
-      { path: 'marking', element: <PlaceholderPage title="阅卷任务" /> },
+      { path: 'marking', element: <MarkingPage /> },
       { path: 'scores', element: <PlaceholderPage title="成绩查询" /> },
       { path: 'analysis', element: <PlaceholderPage title="统计分析" /> },
       { path: 'files', element: <PlaceholderPage title="文件中心" /> },

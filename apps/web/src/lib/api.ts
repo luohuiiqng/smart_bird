@@ -6,6 +6,8 @@ import type {
   Exam,
   ExamStatus,
   Grade,
+  MarkingTask,
+  MarkingTaskStatus,
   Subject,
 } from '../types'
 
@@ -193,4 +195,83 @@ export async function setExamSubjects(
     method: 'POST',
     body: JSON.stringify({ subjects }),
   })
+}
+
+export async function getExamDetail(examId: number) {
+  return request<{
+    id: number
+    name: string
+    examSubjects: Array<{
+      id: number
+      subjectId: number
+      fullScore: number
+      subject: { id: number; name: string; shortName: string | null }
+    }>
+  }>(`/exams/${examId}`)
+}
+
+export async function listMarkingTasks(params?: {
+  examId?: number
+  examSubjectId?: number
+  teacherId?: number
+  status?: MarkingTaskStatus
+  page?: number
+  pageSize?: number
+}) {
+  const search = new URLSearchParams()
+  if (params?.examId) search.set('examId', String(params.examId))
+  if (params?.examSubjectId) search.set('examSubjectId', String(params.examSubjectId))
+  if (params?.teacherId) search.set('teacherId', String(params.teacherId))
+  if (params?.status) search.set('status', params.status)
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  const query = search.toString()
+  return request<{ list: MarkingTask[]; total: number; page: number; pageSize: number }>(
+    `/marking/tasks${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function assignMarkingTasks(payload: {
+  examSubjectId: number
+  assignments: Array<{ teacherId: number; studentIds: number[] }>
+}) {
+  return request<boolean>('/marking/tasks/assign', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function startMarkingTask(taskId: number) {
+  return request<MarkingTask>(`/marking/tasks/${taskId}/start`, { method: 'POST' })
+}
+
+export async function finishMarkingTask(taskId: number) {
+  return request<MarkingTask>(`/marking/tasks/${taskId}/finish`, { method: 'POST' })
+}
+
+export async function reopenMarkingTask(taskId: number, reason: string) {
+  return request<MarkingTask>(`/marking/tasks/${taskId}/reopen`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function getMarkingTaskDetail(taskId: number) {
+  return request<{
+    id: number
+    status: MarkingTaskStatus
+    examSubjectId: number
+    entries: Array<{ id: number; studentId: number; finalSubmitted: boolean }>
+    progress: { totalStudents: number; submittedStudents: number }
+  }>(`/marking/tasks/${taskId}/detail`)
+}
+
+export async function getMarkingExamSubjectProgress(examSubjectId: number) {
+  return request<{
+    examSubjectId: number
+    totalStudents: number
+    submittedStudents: number
+    progressRate: number
+    taskStats: { todo: number; inProgress: number; done: number }
+  }>(`/marking/exam-subjects/${examSubjectId}/progress`)
 }
