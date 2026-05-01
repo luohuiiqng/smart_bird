@@ -12,6 +12,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtPayload } from '../common/types/auth-user';
 import type { StringValue } from 'ms';
+import { getAccessSecret, getRefreshSecret } from './auth-config';
 
 @Injectable()
 export class AuthService {
@@ -160,12 +161,12 @@ export class AuthService {
     ) ?? '7d') as StringValue;
 
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      secret: getAccessSecret(this.configService),
       expiresIn: accessExpiresIn,
     });
 
     const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      secret: getRefreshSecret(this.configService),
       expiresIn: refreshExpiresIn,
     });
 
@@ -179,7 +180,7 @@ export class AuthService {
   private async verifyRefreshToken(token: string): Promise<JwtPayload> {
     try {
       return await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        secret: getRefreshSecret(this.configService),
       });
     } catch {
       throw new UnauthorizedException('AUTH_401');
