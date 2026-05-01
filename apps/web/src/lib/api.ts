@@ -8,6 +8,9 @@ import type {
   Grade,
   MarkingTask,
   MarkingTaskStatus,
+  ScoreRow,
+  ScoreStudentDetail,
+  ExamSummary,
   Subject,
 } from '../types'
 
@@ -274,4 +277,77 @@ export async function getMarkingExamSubjectProgress(examSubjectId: number) {
     progressRate: number
     taskStats: { todo: number; inProgress: number; done: number }
   }>(`/marking/exam-subjects/${examSubjectId}/progress`)
+}
+
+export async function recalculateExamScores(examId: number) {
+  return request<{ examId: number; recalculatedStudents: number }>(
+    `/scores/exams/${examId}/recalculate`,
+    { method: 'POST' },
+  )
+}
+
+export async function listExamScores(examId: number, params?: {
+  page?: number
+  pageSize?: number
+  gradeId?: number
+  classId?: number
+  keyword?: string
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.gradeId) search.set('gradeId', String(params.gradeId))
+  if (params?.classId) search.set('classId', String(params.classId))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  const query = search.toString()
+  return request<{ list: ScoreRow[]; total: number; page: number; pageSize: number }>(
+    `/scores/exams/${examId}${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function getStudentExamScore(examId: number, studentId: number) {
+  return request<ScoreStudentDetail>(`/scores/exams/${examId}/students/${studentId}`)
+}
+
+export async function publishExamScores(examId: number, publishNote?: string) {
+  return request<{ id: number; status: ExamStatus; publishStatus: string }>(
+    `/scores/exams/${examId}/publish`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ publishNote }),
+    },
+  )
+}
+
+export async function unpublishExamScores(examId: number, reason: string) {
+  return request<{ id: number; status: ExamStatus; publishStatus: string }>(
+    `/scores/exams/${examId}/unpublish`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    },
+  )
+}
+
+export async function getAnalysisSummary(examId: number) {
+  return request<ExamSummary>(`/analysis/exams/${examId}/summary`)
+}
+
+export async function getAnalysisClassCompare(examId: number) {
+  return request<Array<{ classId: number; className: string; avgScore: number; passRate: number }>>(
+    `/analysis/exams/${examId}/class-compare`,
+  )
+}
+
+export async function getAnalysisSubjectBreakdown(examId: number) {
+  return request<
+    Array<{
+      examSubjectId: number
+      subjectName: string
+      avgScore: number
+      maxScore: number
+      minScore: number
+      passRate: number
+    }>
+  >(`/analysis/exams/${examId}/subject-breakdown`)
 }

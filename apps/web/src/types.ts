@@ -67,3 +67,52 @@ export type MarkingTask = {
   createdAt: string
   entries: Array<{ id: number; studentId: number; finalSubmitted: boolean }>
 }
+
+export type ScoreRow = {
+  id: number
+  studentId: number
+  totalScore: number
+  rankInClass: number | null
+  rankInGrade: number | null
+  student: {
+    id: number
+    name: string
+    studentNo: string
+    gradeId: number
+    classId: number
+  }
+}
+
+export type ScoreStudentDetail = {
+  total: {
+    studentId: number
+    totalScore: number
+    rankInClass: number | null
+    rankInGrade: number | null
+    student: {
+      id: number
+      name: string
+      studentNo: string
+    }
+  }
+  subjects: Array<{
+    id: number
+    score: number
+    examSubject: {
+      id: number
+      subject: {
+        id: number
+        name: string
+      }
+    }
+  }>
+}
+
+export type ExamSummary = {
+  examId: number
+  studentCount: number
+  avgScore: number
+  maxScore: number
+  minScore: number
+  passRate: number
+}

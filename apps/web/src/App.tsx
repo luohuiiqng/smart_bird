@@ -6,6 +6,7 @@ import { ExamPage } from './pages/ExamPage'
 import { LoginPage } from './pages/LoginPage'
 import { MarkingPage } from './pages/MarkingPage'
 import { OrgPage } from './pages/OrgPage'
+import { ScoresPage } from './pages/ScoresPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
 function ProtectedRoute() {
@@ -32,8 +33,8 @@ const router = createBrowserRouter([
       { path: 'org', element: <OrgPage /> },
       { path: 'exam', element: <ExamPage /> },
       { path: 'marking', element: <MarkingPage /> },
-      { path: 'scores', element: <PlaceholderPage title="成绩查询" /> },
-      { path: 'analysis', element: <PlaceholderPage title="统计分析" /> },
+      { path: 'scores', element: <ScoresPage /> },
+      { path: 'analysis', element: <ScoresPage /> },
       { path: 'files', element: <PlaceholderPage title="文件中心" /> },
       { path: 'audit', element: <PlaceholderPage title="操作审计" /> },
     ],
