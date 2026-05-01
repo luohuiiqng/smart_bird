@@ -23,3 +23,20 @@ export type Grade = {
   status: EntityStatus
   createdAt: string
 }
+
+export type ClassItem = {
+  id: number
+  gradeId: number
+  name: string
+  status: EntityStatus
+  createdAt: string
+}
+
+export type Subject = {
+  id: number
+  name: string
+  shortName: string | null
+  type: string | null
+  status: EntityStatus
+  createdAt: string
+}

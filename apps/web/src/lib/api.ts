@@ -1,4 +1,11 @@
-import type { ApiResponse, CurrentUser, EntityStatus, Grade } from '../types'
+import type {
+  ApiResponse,
+  ClassItem,
+  CurrentUser,
+  EntityStatus,
+  Grade,
+  Subject,
+} from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1'
 const ACCESS_TOKEN_KEY = 'smart_bird_access_token'
@@ -71,6 +78,67 @@ export async function createGrade(payload: {
   status?: EntityStatus
 }) {
   return request<Grade>('/org/grades', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function listClasses(params?: {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  status?: EntityStatus
+  gradeId?: number
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.status) search.set('status', params.status)
+  if (params?.gradeId) search.set('gradeId', String(params.gradeId))
+  const query = search.toString()
+  return request<{ list: ClassItem[]; total: number; page: number; pageSize: number }>(
+    `/org/classes${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function createClass(payload: {
+  gradeId: number
+  name: string
+  status?: EntityStatus
+}) {
+  return request<ClassItem>('/org/classes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function listSubjects(params?: {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  type?: string
+  status?: EntityStatus
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.type) search.set('type', params.type)
+  if (params?.status) search.set('status', params.status)
+  const query = search.toString()
+  return request<{ list: Subject[]; total: number; page: number; pageSize: number }>(
+    `/org/subjects${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function createSubject(payload: {
+  name: string
+  shortName?: string
+  type?: string
+  status?: EntityStatus
+}) {
+  return request<Subject>('/org/subjects', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
