@@ -10,6 +10,7 @@ import type { AuthenticatedUser } from '../common/types/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangeExamStatusDto } from './dto/change-exam-status.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
+import { DeleteExamDto } from './dto/delete-exam.dto';
 import { QueryExamsDto } from './dto/query-exams.dto';
 import { SetExamClassesDto } from './dto/set-exam-classes.dto';
 import { SetExamSubjectsDto } from './dto/set-exam-subjects.dto';
@@ -25,6 +26,7 @@ export class ExamsService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
     const where: Prisma.ExamWhereInput = {
+      deletedAt: null,
       ...(schoolId ? { schoolId } : {}),
       ...(query.keyword
         ? { name: { contains: query.keyword, mode: 'insensitive' } }
@@ -84,6 +86,18 @@ export class ExamsService {
           })),
         });
 
+        await this.writeAuditLog(tx, {
+          schoolId,
+          operatorId: currentUser.id,
+          action: 'create',
+          targetId: exam.id,
+          content: `创建考试：${exam.name}`,
+          metadata: {
+            examType: dto.examType,
+            classIds: dto.classIds,
+          },
+        });
+
         return exam;
       });
     } catch (error: unknown) {
@@ -92,8 +106,8 @@ export class ExamsService {
   }
 
   async detail(currentUser: AuthenticatedUser, examId: number) {
-    const exam = await this.prisma.exam.findUnique({
-      where: { id: examId },
+    const exam = await this.prisma.exam.findFirst({
+      where: { id: examId, deletedAt: null },
       include: {
         examClasses: {
           include: {
@@ -216,9 +230,20 @@ export class ExamsService {
       }
     }
 
-    return this.prisma.exam.update({
-      where: { id: examId },
-      data: { status: dto.targetStatus },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.exam.update({
+        where: { id: examId },
+        data: { status: dto.targetStatus },
+      });
+      await this.writeAuditLog(tx, {
+        schoolId: exam.schoolId,
+        operatorId: currentUser.id,
+        action: 'change-status',
+        targetId: examId,
+        content: `考试状态流转：${exam.status} -> ${dto.targetStatus}`,
+        metadata: { from: exam.status, to: dto.targetStatus },
+      });
+      return updated;
     });
   }
 
@@ -227,10 +252,27 @@ export class ExamsService {
     if (exam.status !== ExamStatus.PENDING_PUBLISH) {
       throw new ConflictException('EXAM_409');
     }
+    const completedMarkedSubjectCount = await this.prisma.examSubject.count({
+      where: { examId, markingCompletedAt: { not: null } },
+    });
+    if (completedMarkedSubjectCount === 0) {
+      throw new UnprocessableEntityException('EXAM_422');
+    }
 
-    return this.prisma.exam.update({
-      where: { id: examId },
-      data: { status: ExamStatus.PUBLISHED },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.exam.update({
+        where: { id: examId },
+        data: { status: ExamStatus.PUBLISHED },
+      });
+      await this.writeAuditLog(tx, {
+        schoolId: exam.schoolId,
+        operatorId: currentUser.id,
+        action: 'publish',
+        targetId: examId,
+        content: '发布考试成绩',
+        metadata: { completedMarkedSubjectCount },
+      });
+      return updated;
     });
   }
 
@@ -248,14 +290,57 @@ export class ExamsService {
       throw new UnprocessableEntityException('EXAM_422');
     }
 
-    return this.prisma.exam.update({
-      where: { id: examId },
-      data: { status: ExamStatus.PENDING_PUBLISH },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.exam.update({
+        where: { id: examId },
+        data: { status: ExamStatus.PENDING_PUBLISH },
+      });
+      await this.writeAuditLog(tx, {
+        schoolId: exam.schoolId,
+        operatorId: currentUser.id,
+        action: 'unpublish',
+        targetId: examId,
+        content: '撤回已发布考试',
+        metadata: { reason: dto.reason },
+      });
+      return updated;
+    });
+  }
+
+  async remove(
+    currentUser: AuthenticatedUser,
+    examId: number,
+    dto: DeleteExamDto,
+  ) {
+    const exam = await this.mustGetExam(currentUser, examId);
+    if (
+      exam.status === ExamStatus.PUBLISHED ||
+      exam.status === ExamStatus.MARKING
+    ) {
+      throw new ConflictException('EXAM_409');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const deleted = await tx.exam.update({
+        where: { id: examId },
+        data: { deletedAt: new Date() },
+      });
+      await this.writeAuditLog(tx, {
+        schoolId: exam.schoolId,
+        operatorId: currentUser.id,
+        action: 'delete',
+        targetId: examId,
+        content: `软删除考试：${exam.name}`,
+        metadata: { reason: dto.reason ?? null },
+      });
+      return deleted;
     });
   }
 
   private async mustGetExam(currentUser: AuthenticatedUser, examId: number) {
-    const exam = await this.prisma.exam.findUnique({ where: { id: examId } });
+    const exam = await this.prisma.exam.findFirst({
+      where: { id: examId, deletedAt: null },
+    });
     if (!exam) {
       throw new NotFoundException('EXAM_404');
     }
@@ -342,5 +427,30 @@ export class ExamsService {
       throw new ConflictException('EXAM_409');
     }
     throw error;
+  }
+
+  private async writeAuditLog(
+    tx: Prisma.TransactionClient,
+    payload: {
+      schoolId: number;
+      operatorId: number;
+      action: string;
+      targetId: number;
+      content: string;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ) {
+    await tx.auditLog.create({
+      data: {
+        schoolId: payload.schoolId,
+        operatorId: payload.operatorId,
+        module: 'exam',
+        action: payload.action,
+        targetType: 'exam',
+        targetId: payload.targetId,
+        content: payload.content,
+        metadata: payload.metadata,
+      },
+    });
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -18,6 +19,7 @@ import type { AuthenticatedUser } from '../common/types/auth-user';
 import { ok } from '../common/types/api-response';
 import { ChangeExamStatusDto } from './dto/change-exam-status.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
+import { DeleteExamDto } from './dto/delete-exam.dto';
 import { QueryExamsDto } from './dto/query-exams.dto';
 import { SetExamClassesDto } from './dto/set-exam-classes.dto';
 import { SetExamSubjectsDto } from './dto/set-exam-subjects.dto';
@@ -106,5 +108,14 @@ export class ExamsController {
     @Body() dto: UnpublishExamDto,
   ) {
     return ok(await this.examsService.unpublish(currentUser, id, dto));
+  }
+
+  @Delete(':id')
+  async remove(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DeleteExamDto,
+  ) {
+    return ok(await this.examsService.remove(currentUser, id, dto));
   }
 }

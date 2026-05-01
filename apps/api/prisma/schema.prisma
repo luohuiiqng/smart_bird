@@ -42,6 +42,7 @@ model School {
   teachers  Teacher[]
   students  Student[]
   exams     Exam[]
+  auditLogs AuditLog[]
 
   @@map("schools")
 }
@@ -60,6 +61,7 @@ model User {
   refreshTokenHash String?  @map("refresh_token_hash")
   lastLoginAt  DateTime?    @map("last_login_at")
   createdAt    DateTime     @default(now()) @map("created_at")
+  auditLogs    AuditLog[]
 
   @@index([schoolId], map: "users_school_id_idx")
   @@map("users")
@@ -162,12 +164,14 @@ model Exam {
   status    ExamStatus @default(CREATED) @map("status")
   createdBy Int        @map("created_by")
   createdAt DateTime   @default(now()) @map("created_at")
+  deletedAt DateTime?  @map("deleted_at")
   examClasses ExamClass[]
   examSubjects ExamSubject[]
 
   @@index([schoolId], map: "exams_school_id_idx")
   @@index([status], map: "exams_status_idx")
   @@index([startDate, endDate], map: "exams_date_idx")
+  @@index([deletedAt], map: "exams_deleted_at_idx")
   @@map("exams")
 }
 
@@ -191,9 +195,31 @@ model ExamSubject {
   subjectId Int      @map("subject_id")
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   fullScore Int      @map("full_score")
+  markingCompletedAt DateTime? @map("marking_completed_at")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([examId, subjectId], map: "exam_subjects_exam_id_subject_id_key")
   @@index([subjectId], map: "exam_subjects_subject_id_idx")
   @@map("exam_subjects")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement()) @map("id")
+  schoolId   Int      @map("school_id")
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  operatorId Int      @map("operator_id")
+  operator   User     @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  module     String   @map("module")
+  action     String   @map("action")
+  targetType String   @map("target_type")
+  targetId   Int      @map("target_id")
+  content    String   @map("content")
+  metadata   Json?    @map("metadata")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([schoolId], map: "audit_logs_school_id_idx")
+  @@index([operatorId], map: "audit_logs_operator_id_idx")
+  @@index([module, action], map: "audit_logs_module_action_idx")
+  @@index([targetType, targetId], map: "audit_logs_target_idx")
+  @@map("audit_logs")
 }
