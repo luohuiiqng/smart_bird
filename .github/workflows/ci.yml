@@ -53,6 +53,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://app:app@localhost:5432/exam_sys?schema=public
+      JWT_ACCESS_SECRET: ci_access_secret_change_me
+      JWT_REFRESH_SECRET: ci_refresh_secret_change_me
 
     defaults:
       run:

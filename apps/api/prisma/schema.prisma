@@ -44,6 +44,7 @@ model User {
   phone        String?      @map("phone")
   role         UserRole     @map("role")
   status       EntityStatus @default(ENABLED) @map("status")
+  refreshTokenHash String?  @map("refresh_token_hash")
   lastLoginAt  DateTime?    @map("last_login_at")
   createdAt    DateTime     @default(now()) @map("created_at")
 
