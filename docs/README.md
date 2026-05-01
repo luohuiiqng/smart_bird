@@ -67,6 +67,11 @@
 - 职责：定义 CI/CD 流程（GitHub Actions）、分支策略、环境与密钥约定。
 - 不包含：业务接口契约、服务器底层运维手册。
 
+## 当前进度快照（2026-05-01）
+- 后端 MVP 模块已全部落地：`auth/org/exam/marking/scores/analysis/files/audit`。
+- 最近一次联调冒烟：`apps/api` 下执行 `npm run test:e2e`，`7 suites / 15 tests` 全通过。
+- 当前建议工作重点：前端管理端页面接入与端到端角色联调。
+
 ## 阅读顺序建议
 0. `00-development-standards.md`（开发与界面底线，编码前必读）
 1. `01-current-system-analysis.md`（先统一对标认知）
