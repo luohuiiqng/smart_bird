@@ -116,3 +116,44 @@ export type ExamSummary = {
   minScore: number
   passRate: number
 }
+
+export type FileCategory =
+  | 'ANSWER_SHEET_TEMPLATE'
+  | 'IMPORT_FILE'
+  | 'EXPORT_FILE'
+  | 'SCAN_IMAGE'
+  | 'OTHER'
+
+export type FileAsset = {
+  id: number
+  schoolId: number
+  uploaderId: number
+  category: FileCategory
+  objectKey: string
+  fileName: string
+  contentType: string
+  size: number
+  bizType: string | null
+  bizId: number | null
+  deletedAt: string | null
+  createdAt: string
+}
+
+export type AuditLog = {
+  id: number
+  schoolId: number
+  operatorId: number
+  module: string
+  action: string
+  targetType: string
+  targetId: number
+  content: string
+  metadata: unknown
+  createdAt: string
+  operator: {
+    id: number
+    username: string
+    realName: string
+    role: UserRole
+  }
+}

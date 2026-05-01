@@ -1,10 +1,13 @@
 import type {
   ApiResponse,
+  AuditLog,
   ClassItem,
   CurrentUser,
   EntityStatus,
   Exam,
   ExamStatus,
+  FileAsset,
+  FileCategory,
   Grade,
   MarkingTask,
   MarkingTaskStatus,
@@ -350,4 +353,65 @@ export async function getAnalysisSubjectBreakdown(examId: number) {
       passRate: number
     }>
   >(`/analysis/exams/${examId}/subject-breakdown`)
+}
+
+export async function uploadFileMetadata(payload: {
+  category: FileCategory
+  fileName: string
+  contentType: string
+  size: number
+  bizType?: string
+  bizId?: number
+}) {
+  return request<{
+    fileId: number
+    objectKey: string
+    fileName: string
+    size: number
+    contentType: string
+  }>('/files/upload', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function getFileDetail(fileId: number) {
+  return request<FileAsset>(`/files/${fileId}`)
+}
+
+export async function getFilePresignedUrl(fileId: number, expiresIn = 300) {
+  return request<{ url: string; expiresIn: number }>(
+    `/files/${fileId}/presigned-url?expiresIn=${expiresIn}`,
+  )
+}
+
+export async function deleteFile(fileId: number) {
+  return request<FileAsset>(`/files/${fileId}`, { method: 'DELETE' })
+}
+
+export async function listAuditLogs(params?: {
+  module?: string
+  action?: string
+  operatorId?: number
+  targetType?: string
+  targetId?: number
+  page?: number
+  pageSize?: number
+}) {
+  const search = new URLSearchParams()
+  if (params?.module) search.set('module', params.module)
+  if (params?.action) search.set('action', params.action)
+  if (params?.operatorId) search.set('operatorId', String(params.operatorId))
+  if (params?.targetType) search.set('targetType', params.targetType)
+  if (params?.targetId) search.set('targetId', String(params.targetId))
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  const query = search.toString()
+  return request<{ list: AuditLog[]; total: number; page: number; pageSize: number }>(
+    `/audit/logs${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function getAuditLogDetail(id: number) {
+  return request<AuditLog>(`/audit/logs/${id}`)
 }

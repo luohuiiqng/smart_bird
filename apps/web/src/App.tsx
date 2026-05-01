@@ -3,11 +3,12 @@ import { useAuth } from './auth/useAuth'
 import { AppShell } from './layout/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { ExamPage } from './pages/ExamPage'
+import { FilesPage } from './pages/FilesPage'
 import { LoginPage } from './pages/LoginPage'
 import { MarkingPage } from './pages/MarkingPage'
 import { OrgPage } from './pages/OrgPage'
 import { ScoresPage } from './pages/ScoresPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { AuditPage } from './pages/AuditPage'
 
 function ProtectedRoute() {
   const { user, initializing } = useAuth()
@@ -35,8 +36,8 @@ const router = createBrowserRouter([
       { path: 'marking', element: <MarkingPage /> },
       { path: 'scores', element: <ScoresPage /> },
       { path: 'analysis', element: <ScoresPage /> },
-      { path: 'files', element: <PlaceholderPage title="文件中心" /> },
-      { path: 'audit', element: <PlaceholderPage title="操作审计" /> },
+      { path: 'files', element: <FilesPage /> },
+      { path: 'audit', element: <AuditPage /> },
     ],
   },
   {
