@@ -12,6 +12,8 @@ import { ExamsModule } from './exams/exams.module';
 import { MarkingModule } from './marking/marking.module';
 import { ScoresModule } from './scores/scores.module';
 import { AnalysisModule } from './analysis/analysis.module';
+import { FilesModule } from './files/files.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { AnalysisModule } from './analysis/analysis.module';
     MarkingModule,
     ScoresModule,
     AnalysisModule,
+    FilesModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],

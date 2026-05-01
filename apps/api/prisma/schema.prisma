@@ -41,6 +41,14 @@ enum ScorePublishStatus {
   PUBLISHED
 }
 
+enum FileCategory {
+  ANSWER_SHEET_TEMPLATE
+  IMPORT_FILE
+  EXPORT_FILE
+  SCAN_IMAGE
+  OTHER
+}
+
 model School {
   id        Int            @id @default(autoincrement()) @map("id")
   name      String         @map("name")
@@ -58,6 +66,7 @@ model School {
   markingTasks MarkingTask[]
   examStudentScores ExamStudentScore[]
   examStudentSubjectScores ExamStudentSubjectScore[]
+  files     FileAsset[]
 
   @@map("schools")
 }
@@ -78,6 +87,7 @@ model User {
   createdAt    DateTime     @default(now()) @map("created_at")
   auditLogs    AuditLog[]
   markingTasks MarkingTask[] @relation("MarkingTaskAssignee")
+  uploadedFiles FileAsset[] @relation("FileUploader")
 
   @@index([schoolId], map: "users_school_id_idx")
   @@map("users")
@@ -334,4 +344,27 @@ model AuditLog {
   @@index([module, action], map: "audit_logs_module_action_idx")
   @@index([targetType, targetId], map: "audit_logs_target_idx")
   @@map("audit_logs")
+}
+
+model FileAsset {
+  id          Int          @id @default(autoincrement()) @map("id")
+  schoolId    Int          @map("school_id")
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  uploaderId  Int          @map("uploader_id")
+  uploader    User         @relation("FileUploader", fields: [uploaderId], references: [id], onDelete: Restrict)
+  category    FileCategory @map("category")
+  objectKey   String       @map("object_key")
+  fileName    String       @map("file_name")
+  contentType String       @map("content_type")
+  size        Int          @map("size")
+  bizType     String?      @map("biz_type")
+  bizId       Int?         @map("biz_id")
+  deletedAt   DateTime?    @map("deleted_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([schoolId], map: "file_assets_school_id_idx")
+  @@index([uploaderId], map: "file_assets_uploader_id_idx")
+  @@index([category], map: "file_assets_category_idx")
+  @@index([deletedAt], map: "file_assets_deleted_at_idx")
+  @@map("file_assets")
 }
