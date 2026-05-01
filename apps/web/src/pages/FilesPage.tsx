@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { deleteFile, getFileDetail, getFilePresignedUrl, uploadFileMetadata } from '../lib/api'
+import {
+  deleteFile,
+  getFileDetail,
+  getFilePresignedUrl,
+  uploadFileBinary,
+} from '../lib/api'
 import type { FileAsset, FileCategory } from '../types'
 
 const CATEGORIES: FileCategory[] = [
@@ -15,13 +20,9 @@ export function FilesPage() {
   const [detail, setDetail] = useState<FileAsset | null>(null)
   const [presignedUrl, setPresignedUrl] = useState('')
   const [error, setError] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const [category, setCategory] = useState<FileCategory>('IMPORT_FILE')
-  const [fileName, setFileName] = useState('students.xlsx')
-  const [contentType, setContentType] = useState(
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  )
-  const [size, setSize] = useState('1024')
   const [bizType, setBizType] = useState('student-import')
   const [bizId, setBizId] = useState('1')
   const [createdFileId, setCreatedFileId] = useState<number | null>(null)
@@ -29,12 +30,14 @@ export function FilesPage() {
   const onUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
+    if (!selectedFile) {
+      setError('请先选择文件')
+      return
+    }
     try {
-      const data = await uploadFileMetadata({
+      const data = await uploadFileBinary({
+        file: selectedFile,
         category,
-        fileName: fileName.trim(),
-        contentType: contentType.trim(),
-        size: Number(size),
         bizType: bizType.trim() || undefined,
         bizId: bizId.trim() ? Number(bizId) : undefined,
       })
@@ -91,7 +94,7 @@ export function FilesPage() {
       {error ? <div className="error-tip">{error}</div> : null}
 
       <div className="block-card">
-        <h3>上传元数据登记（MVP）</h3>
+        <h3>真实上传（MinIO）</h3>
         <form className="inline-form exam-bind-form" onSubmit={onUpload}>
           <select value={category} onChange={(e) => setCategory(e.target.value as FileCategory)}>
             {CATEGORIES.map((item) => (
@@ -100,13 +103,15 @@ export function FilesPage() {
               </option>
             ))}
           </select>
-          <input value={fileName} onChange={(e) => setFileName(e.target.value)} />
-          <input value={contentType} onChange={(e) => setContentType(e.target.value)} />
-          <input value={size} onChange={(e) => setSize(e.target.value)} />
+          <input
+            type="file"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
           <input value={bizType} onChange={(e) => setBizType(e.target.value)} />
           <input value={bizId} onChange={(e) => setBizId(e.target.value)} />
-          <button type="submit">提交登记</button>
+          <button type="submit">上传文件</button>
         </form>
+        <p>{selectedFile ? `已选择: ${selectedFile.name}` : '尚未选择文件'}</p>
       </div>
 
       <div className="block-card">

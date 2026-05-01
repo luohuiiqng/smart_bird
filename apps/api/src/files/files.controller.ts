@@ -3,12 +3,16 @@ import {
   Controller,
   Delete,
   Get,
+  ParseFilePipeBuilder,
   Param,
   ParseIntPipe,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -18,6 +22,7 @@ import type { AuthenticatedUser } from '../common/types/auth-user';
 import { ok } from '../common/types/api-response';
 import { FilesService } from './files.service';
 import { PresignedUrlQueryDto } from './dto/presigned-url-query.dto';
+import { UploadBinaryFileDto } from './dto/upload-binary-file.dto';
 import { UploadFileDto } from './dto/upload-file.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,6 +37,31 @@ export class FilesController {
     @Body() dto: UploadFileDto,
   ) {
     return ok(await this.filesService.upload(currentUser, dto));
+  }
+
+  @Post('upload-binary')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 20 * 1024 * 1024 },
+    }),
+  )
+  async uploadBinary(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /(.*)/ })
+        .addMaxSizeValidator({ maxSize: 20 * 1024 * 1024 })
+        .build(),
+    )
+    file: {
+      originalname: string;
+      mimetype: string;
+      size: number;
+      buffer: Buffer;
+    },
+    @Body() dto: UploadBinaryFileDto,
+  ) {
+    return ok(await this.filesService.uploadBinary(currentUser, file, dto));
   }
 
   @Get(':id')

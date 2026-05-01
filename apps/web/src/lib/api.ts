@@ -34,10 +34,11 @@ export function clearAccessToken() {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken()
+  const isFormData = init?.body instanceof FormData
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
@@ -372,6 +373,30 @@ export async function uploadFileMetadata(payload: {
   }>('/files/upload', {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export async function uploadFileBinary(payload: {
+  file: File
+  category: FileCategory
+  bizType?: string
+  bizId?: number
+}) {
+  const formData = new FormData()
+  formData.set('file', payload.file)
+  formData.set('category', payload.category)
+  if (payload.bizType) formData.set('bizType', payload.bizType)
+  if (payload.bizId) formData.set('bizId', String(payload.bizId))
+
+  return request<{
+    fileId: number
+    objectKey: string
+    fileName: string
+    size: number
+    contentType: string
+  }>('/files/upload-binary', {
+    method: 'POST',
+    body: formData,
   })
 }
 
