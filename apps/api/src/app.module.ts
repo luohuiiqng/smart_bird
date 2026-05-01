@@ -11,6 +11,7 @@ import { OrgModule } from './org/org.module';
 import { ExamsModule } from './exams/exams.module';
 import { MarkingModule } from './marking/marking.module';
 import { ScoresModule } from './scores/scores.module';
+import { AnalysisModule } from './analysis/analysis.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ScoresModule } from './scores/scores.module';
     ExamsModule,
     MarkingModule,
     ScoresModule,
+    AnalysisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

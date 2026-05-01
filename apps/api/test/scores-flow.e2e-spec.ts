@@ -238,6 +238,45 @@ describe('Scores flow (e2e)', () => {
       });
 
     await request(server)
+      .get(`/api/v1/analysis/exams/${examId}/summary`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          data: { studentCount: number; maxScore: number; minScore: number };
+        };
+        expect(body.data.studentCount).toBe(2);
+        expect(body.data.maxScore).toBe(88);
+        expect(body.data.minScore).toBe(76);
+      });
+
+    await request(server)
+      .get(`/api/v1/analysis/exams/${examId}/class-compare`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          data: Array<{ classId: number; avgScore: number }>;
+        };
+        expect(body.data.length).toBe(1);
+        expect(body.data[0]?.classId).toBe(classId);
+        expect(body.data[0]?.avgScore).toBe(82);
+      });
+
+    await request(server)
+      .get(`/api/v1/analysis/exams/${examId}/subject-breakdown`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          data: Array<{ examSubjectId: number; avgScore: number }>;
+        };
+        expect(body.data.length).toBe(1);
+        expect(body.data[0]?.examSubjectId).toBe(examSubjectId);
+        expect(body.data[0]?.avgScore).toBe(82);
+      });
+
+    await request(server)
       .post(`/api/v1/scores/exams/${examId}/publish`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ publishNote: '期中成绩正式发布' })
