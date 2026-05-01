@@ -80,6 +80,7 @@
 - 最近一次联调冒烟：`apps/api` 下执行 `npm run test:e2e`，`7 suites / 15 tests` 全通过。
 - 前端管理端页面已完成接入：`org/exam/marking/scores/analysis/files/audit`。
 - 当前建议工作重点：端到端角色联调 + 文件真实上传链路（MinIO）打通 + 页面体验优化。
+- 已新增上线收口脚本：`scripts/pre-release-check.sh`（支持 `quick/full` 两种模式）。
 
 ## 阅读顺序建议
 0. `00-development-standards.md`（开发与界面底线，编码前必读）

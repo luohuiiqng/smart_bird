@@ -19,6 +19,7 @@
 - 建议每日站会按本清单逐项勾选。
 - 每天结束需沉淀 3 个产物：`问题清单`、`结论记录`、`次日风险`。
 - 阻塞项超过 24 小时未解除，必须升级处理（负责人 + 截止时间）。
+- 可直接执行：`scripts/pre-release-check.sh`（`MODE=quick` 或 `MODE=full`）。
 
 ---
 
@@ -27,7 +28,7 @@
 ### D-14（环境一致性日）
 - [ ] 确认 `staging` 配置与本地一致（DB/Redis/MinIO/JWT/API 前缀）。
 - [ ] 校验 MinIO bucket、访问密钥、预签名有效期策略。
-- [ ] 执行：`npm run test:e2e`（api）与 `npm run build`（web）。
+- [ ] 执行：`MODE=quick API_BASE_URL=http://localhost:3001/api/v1 bash scripts/pre-release-check.sh`。
 - 产出：`环境核对表 v1`。
 
 ### D-13（数据与账号准备日）
@@ -40,6 +41,7 @@
 - [ ] 执行 `scripts/smoke-role-flow.sh`。
 - [ ] 补充教师链路参数并验证 `403` 权限拒绝行为。
 - [ ] 记录失败步骤、接口响应、复现方式。
+- [ ] 若需全量验证：`MODE=full API_BASE_URL=http://localhost:3001/api/v1 bash scripts/pre-release-check.sh`。
 - 产出：`角色冒烟报告 v1`。
 
 ---
