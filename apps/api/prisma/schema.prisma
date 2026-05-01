@@ -36,6 +36,11 @@ enum MarkingTaskStatus {
   LOCKED
 }
 
+enum ScorePublishStatus {
+  UNPUBLISHED
+  PUBLISHED
+}
+
 model School {
   id        Int            @id @default(autoincrement()) @map("id")
   name      String         @map("name")
@@ -51,6 +56,8 @@ model School {
   exams     Exam[]
   auditLogs AuditLog[]
   markingTasks MarkingTask[]
+  examStudentScores ExamStudentScore[]
+  examStudentSubjectScores ExamStudentSubjectScore[]
 
   @@map("schools")
 }
@@ -154,6 +161,8 @@ model Student {
   class     Class        @relation(fields: [classId], references: [id], onDelete: Restrict)
   status    EntityStatus @default(ENABLED) @map("status")
   createdAt DateTime     @default(now()) @map("created_at")
+  examScores ExamStudentScore[]
+  examSubjectScores ExamStudentSubjectScore[]
 
   @@unique([schoolId, studentNo], map: "students_school_id_student_no_key")
   @@index([schoolId], map: "students_school_id_idx")
@@ -177,9 +186,15 @@ model Exam {
   examClasses ExamClass[]
   examSubjects ExamSubject[]
   markingTasks MarkingTask[]
+  studentScores ExamStudentScore[]
+  studentSubjectScores ExamStudentSubjectScore[]
+  publishStatus ScorePublishStatus @default(UNPUBLISHED) @map("publish_status")
+  publishedAt DateTime? @map("published_at")
+  publishNote String? @map("publish_note")
 
   @@index([schoolId], map: "exams_school_id_idx")
   @@index([status], map: "exams_status_idx")
+  @@index([publishStatus], map: "exams_publish_status_idx")
   @@index([startDate, endDate], map: "exams_date_idx")
   @@index([deletedAt], map: "exams_deleted_at_idx")
   @@map("exams")
@@ -208,6 +223,7 @@ model ExamSubject {
   markingCompletedAt DateTime? @map("marking_completed_at")
   createdAt DateTime @default(now()) @map("created_at")
   markingTasks MarkingTask[]
+  studentScores ExamStudentSubjectScore[]
 
   @@unique([examId, subjectId], map: "exam_subjects_exam_id_subject_id_key")
   @@index([subjectId], map: "exam_subjects_subject_id_idx")
@@ -253,6 +269,50 @@ model MarkingTaskEntry {
   @@index([studentId], map: "marking_task_entries_student_id_idx")
   @@index([finalSubmitted], map: "marking_task_entries_final_submitted_idx")
   @@map("marking_task_entries")
+}
+
+model ExamStudentScore {
+  id          Int      @id @default(autoincrement()) @map("id")
+  schoolId    Int      @map("school_id")
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  examId      Int      @map("exam_id")
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId   Int      @map("student_id")
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  totalScore  Decimal  @db.Decimal(8, 2) @map("total_score")
+  rankInClass Int?     @map("rank_in_class")
+  rankInGrade Int?     @map("rank_in_grade")
+  recalculatedAt DateTime @default(now()) @map("recalculated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  subjectScores ExamStudentSubjectScore[]
+
+  @@unique([examId, studentId], map: "exam_student_scores_exam_id_student_id_key")
+  @@index([schoolId], map: "exam_student_scores_school_id_idx")
+  @@index([examId], map: "exam_student_scores_exam_id_idx")
+  @@index([studentId], map: "exam_student_scores_student_id_idx")
+  @@map("exam_student_scores")
+}
+
+model ExamStudentSubjectScore {
+  id          Int      @id @default(autoincrement()) @map("id")
+  schoolId    Int      @map("school_id")
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  examId      Int      @map("exam_id")
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examSubjectId Int    @map("exam_subject_id")
+  examSubject ExamSubject @relation(fields: [examSubjectId], references: [id], onDelete: Restrict)
+  studentId   Int      @map("student_id")
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  totalScoreId Int     @map("total_score_id")
+  totalScore  ExamStudentScore @relation(fields: [totalScoreId], references: [id], onDelete: Cascade)
+  score       Decimal  @db.Decimal(8, 2) @map("score")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([examSubjectId, studentId], map: "exam_student_subject_scores_exam_subject_id_student_id_key")
+  @@index([examId], map: "exam_student_subject_scores_exam_id_idx")
+  @@index([studentId], map: "exam_student_subject_scores_student_id_idx")
+  @@index([totalScoreId], map: "exam_student_subject_scores_total_score_id_idx")
+  @@map("exam_student_subject_scores")
 }
 
 model AuditLog {
