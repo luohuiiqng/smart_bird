@@ -6,6 +6,7 @@ import {
   ParseFilePipeBuilder,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -22,6 +23,9 @@ import type { AuthenticatedUser } from '../common/types/auth-user';
 import { ok } from '../common/types/api-response';
 import { FilesService } from './files.service';
 import { PresignedUrlQueryDto } from './dto/presigned-url-query.dto';
+import { QueryFilesDto } from './dto/query-files.dto';
+import { UpdateFilePatchDto } from './dto/update-file-patch.dto';
+import { CreateAnswerSheetTemplateDto } from './dto/create-answer-sheet-template.dto';
 import { UploadBinaryFileDto } from './dto/upload-binary-file.dto';
 import { UploadFileDto } from './dto/upload-file.dto';
 
@@ -31,12 +35,28 @@ import { UploadFileDto } from './dto/upload-file.dto';
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
+  @Get()
+  async list(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query() query: QueryFilesDto,
+  ) {
+    return ok(await this.filesService.list(currentUser, query));
+  }
+
   @Post('upload')
   async upload(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: UploadFileDto,
   ) {
     return ok(await this.filesService.upload(currentUser, dto));
+  }
+
+  @Post('answer-sheet-template')
+  async createAnswerSheetTemplate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: CreateAnswerSheetTemplateDto,
+  ) {
+    return ok(await this.filesService.createAnswerSheetTemplate(currentUser, dto));
   }
 
   @Post('upload-binary')
@@ -62,6 +82,15 @@ export class FilesController {
     @Body() dto: UploadBinaryFileDto,
   ) {
     return ok(await this.filesService.uploadBinary(currentUser, file, dto));
+  }
+
+  @Patch(':id')
+  async patchFile(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateFilePatchDto,
+  ) {
+    return ok(await this.filesService.patchFile(currentUser, id, dto));
   }
 
   @Get(':id')

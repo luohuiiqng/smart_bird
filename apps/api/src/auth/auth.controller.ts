@@ -4,6 +4,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../common/types/auth-user';
 import { ok } from '../common/types/api-response';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
@@ -25,6 +26,15 @@ export class AuthController {
   @Post('logout')
   async logout(@CurrentUser() user: AuthenticatedUser) {
     return ok(await this.authService.logout(user.id));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return ok(await this.authService.changePassword(user.id, dto));
   }
 
   @UseGuards(JwtAuthGuard)

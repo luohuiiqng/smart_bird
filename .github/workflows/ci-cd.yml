@@ -1,0 +1,277 @@
+# CI/CD Pipeline - 完整自动化部署
+# 功能：代码检查 → 测试 → 构建 → 镜像推送 → 自动部署
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'production'
+        options:
+          - production
+          - staging
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 环境配置
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/smart-bird
+
+jobs:
+  # 1. 文档检查 - 确保所有规范文档齐全
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Verify documentation
+        run: |
+          test -f docs/README.md
+          test -f docs/00-development-standards.md
+          test -f docs/13-ci-cd-spec.md
+          echo "✅ Documentation verified"
+
+  # 2. 后端测试 - API服务 (NestJS + Prisma)
+  backend:
+    needs: docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: exam_sys
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://app:@localhost:5432/exam_sys?schema=public
+      JWT_ACCESS_SECRET: ci_access_secret_change_me
+      JWT_REFRESH_SECRET: ci_refresh_secret_change_me
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma migrate deploy
+        run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test -- --coverage
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+  # 3. 前端测试 - Web服务 (Next.js/Vue)
+  frontend:
+    needs: backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Frontend tests
+        run: npm test -- --coverage
+
+  # 4. 质量门禁 - 代码覆盖率检查
+  quality-gate:
+    needs: frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Check code coverage
+        run: |
+          echo "🔍 检查代码覆盖率..."
+          echo "暂缺：需要添加覆盖率检查逻辑"
+          # 这里可以添加覆盖率检查，比如要求 > 80%
+
+  # 5. 构建和推送Docker镜像
+  build-and-push:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: [ 'latest', 'sha-${{ github.sha }}', 'branch-${{ github.ref_name }}' ]
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NPM_REGISTRY=https://registry.npmmirror.com
+
+  # 6. 生产部署 - 自动部署到服务器
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment: 'production'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: hashicorp/vault-action@v2
+        with:
+          secrets: |
+            SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}
+          export: true
+
+      - name: Add SSH fingerprint
+        run: |
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to Production
+        run: |
+          # 添加SSH密钥到ssh-agent
+          eval "$(ssh-agent -s)"
+          echo "$SSH_PRIVATE_KEY" | ssh-add -
+          
+          echo "🚀 开始生产部署..."
+          
+          # 从项目.env文件获取服务器信息（注意：这个.env是开发用的，生产环境可能不同）
+          # 实际生产部署应该使用服务器上的.env文件
+          
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            set -e
+            
+            echo "📂 进入项目目录..."
+            cd /home/hqluo/xiaozhi  # 你的部署路径
+            
+            echo "🔄 拉取最新代码..."
+            git pull origin main
+            
+            echo "📦 安装依赖..."
+            cd apps/api && npm ci && cd ../..
+            cd apps/web && npm ci && cd ..
+            
+            echo "🏗️ 构建项目..."
+            npm run build --workspaces=false
+            
+            echo: "🐳 重启Docker服务..."
+            docker-compose -f docker-compose.prod.yml up -d --build
+            
+            echo "✅ 生产部署完成!"
+            echo "📊 服务状态："
+            docker-compose -f docker-compose.prod.yml ps
+            echo "📝 最近日志："
+            docker-compose -f docker-compose.prod.yml logs -f --tail=10 api
+EOF
+
+      - name: 部署通知
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = ${{ job.status }}
+            const message = status === 'success' 
+              ? '🎉 生产部署成功!' 
+              : '❌ 生产部署失败!'
+            
+            github.rest.repos.createStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: status === 'success' ? 'success' : 'failure',
+              description: message,
+              context: 'deploy'
+            })
+```
+
+现在我需要创建一个简版本的工作流，因为用户可能不需要所有这些复杂的步骤。让我创建一个更简洁的版本，专注于自动部署：

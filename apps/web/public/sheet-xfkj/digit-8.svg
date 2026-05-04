@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<!DOCTYPE svg  PUBLIC '-//W3C//DTD SVG 1.1//EN'  'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
+<svg id="abcd" version="1.1" viewBox="0 0 150 92" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<polyline points="38,0 0,0 0,92 38,92"
+      style="fill-opacity: 0; stroke-width:13; stroke:black;"/>
+  <line x1="0" y1="92" x2="38" y2="92"
+    style="fill-opacity: 0; stroke-width:13; stroke:black;"/>
+  <text style="font-family:arial" x="50%" y="80" font-size="85" text-anchor="middle">8</text>
+  <polyline points="112,0 150,0 150,92 112,92"
+    style="fill-opacity: 0; stroke-width:13; stroke:black;"/>
+</svg>

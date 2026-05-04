@@ -3,8 +3,10 @@ import type {
   AuditLog,
   ClassItem,
   CurrentUser,
+  OrgUser,
   EntityStatus,
   Exam,
+  ExamDetail,
   ExamStatus,
   FileAsset,
   FileCategory,
@@ -14,10 +16,14 @@ import type {
   ScoreRow,
   ScoreStudentDetail,
   ExamSummary,
+  MarkingTaskDetail,
+  Student,
   Subject,
+  Teacher,
+  UserRole,
 } from '../types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1'
 const ACCESS_TOKEN_KEY = 'smart_bird_access_token'
 
 export function getAccessToken() {
@@ -32,8 +38,15 @@ export function clearAccessToken() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
 }
 
+function needsBearer(path: string, init?: RequestInit) {
+  if (init?.method === 'POST' && (path === '/auth/login' || path === '/auth/refresh')) {
+    return false
+  }
+  return true
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken()
+  const token = needsBearer(path, init) ? getAccessToken() : null
   const isFormData = init?.body instanceof FormData
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -44,11 +57,38 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   })
 
+  const raw = await response.text()
+
   if (!response.ok) {
-    throw new Error(`HTTP_${response.status}`)
+    let message = `HTTP_${response.status}`
+    try {
+      const errBody = JSON.parse(raw) as { message?: string | string[] }
+      const m = errBody.message
+      const first = Array.isArray(m) ? m[0] : m
+      if (typeof first === 'string') {
+        if (response.status === 401) {
+          if (first === 'AUTH_401') {
+            if (path === '/auth/login') {
+              message = '账号或密码错误'
+            } else if (path === '/auth/change-password') {
+              message = '当前密码不正确'
+            } else {
+              message = '登录已失效，请重新登录'
+            }
+          } else {
+            message = first
+          }
+        } else {
+          message = first
+        }
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+    throw new Error(message)
   }
 
-  const payload = (await response.json()) as ApiResponse<T>
+  const payload = JSON.parse(raw) as ApiResponse<T>
   if (payload.code !== 0) {
     throw new Error(payload.message || 'API_ERROR')
   }
@@ -64,6 +104,13 @@ export async function login(username: string, password: string) {
 
 export async function getMe() {
   return request<CurrentUser>('/auth/me')
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  return request<boolean>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
 }
 
 export async function listGrades(params?: {
@@ -90,6 +137,16 @@ export async function createGrade(payload: {
 }) {
   return request<Grade>('/org/grades', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateGrade(
+  id: number,
+  payload: { name?: string; stage?: string; status?: EntityStatus },
+) {
+  return request<Grade>(`/org/grades/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   })
 }
@@ -124,6 +181,16 @@ export async function createClass(payload: {
   })
 }
 
+export async function updateClass(
+  id: number,
+  payload: { gradeId?: number; name?: string; status?: EntityStatus },
+) {
+  return request<ClassItem>(`/org/classes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function listSubjects(params?: {
   page?: number
   pageSize?: number
@@ -153,6 +220,127 @@ export async function createSubject(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+export async function updateSubject(
+  id: number,
+  payload: {
+    name?: string
+    shortName?: string
+    type?: string
+    status?: EntityStatus
+  },
+) {
+  return request<Subject>(`/org/subjects/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function listTeachers(params?: {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  status?: EntityStatus
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.status) search.set('status', params.status)
+  const query = search.toString()
+  return request<{ list: Teacher[]; total: number; page: number; pageSize: number }>(
+    `/org/teachers${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function createTeacher(payload: {
+  name: string
+  gender?: string
+  phone?: string
+  email?: string
+  status?: EntityStatus
+}) {
+  return request<Teacher>('/org/teachers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateTeacher(
+  id: number,
+  payload: {
+    name?: string
+    gender?: string
+    phone?: string
+    email?: string
+    status?: EntityStatus
+  },
+) {
+  return request<Teacher>(`/org/teachers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteTeacher(id: number) {
+  return request<boolean>(`/org/teachers/${id}`, { method: 'DELETE' })
+}
+
+export async function listStudents(params?: {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  gradeId?: number
+  classId?: number
+  status?: EntityStatus
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.gradeId) search.set('gradeId', String(params.gradeId))
+  if (params?.classId) search.set('classId', String(params.classId))
+  if (params?.status) search.set('status', params.status)
+  const query = search.toString()
+  return request<{ list: Student[]; total: number; page: number; pageSize: number }>(
+    `/org/students${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function createStudent(payload: {
+  studentNo: string
+  name: string
+  gender?: string
+  gradeId: number
+  classId: number
+  status?: EntityStatus
+}) {
+  return request<Student>('/org/students', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateStudent(
+  id: number,
+  payload: {
+    studentNo?: string
+    name?: string
+    gender?: string
+    gradeId?: number
+    classId?: number
+    status?: EntityStatus
+  },
+) {
+  return request<Student>(`/org/students/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteStudent(id: number) {
+  return request<boolean>(`/org/students/${id}`, { method: 'DELETE' })
 }
 
 export async function listExams(params?: {
@@ -205,16 +393,46 @@ export async function setExamSubjects(
 }
 
 export async function getExamDetail(examId: number) {
-  return request<{
-    id: number
-    name: string
-    examSubjects: Array<{
-      id: number
-      subjectId: number
-      fullScore: number
-      subject: { id: number; name: string; shortName: string | null }
-    }>
-  }>(`/exams/${examId}`)
+  return request<ExamDetail>(`/exams/${examId}`)
+}
+
+export async function submitMarkingScore(
+  taskId: number,
+  payload: {
+    studentId: number
+    scores: Array<{ questionNo: number; score: number }>
+    finalSubmit: boolean
+  },
+) {
+  return request<unknown>(`/marking/tasks/${taskId}/submit-score`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function changeExamStatus(examId: number, targetStatus: ExamStatus) {
+  return request<Exam>(`/exams/${examId}/change-status`, {
+    method: 'POST',
+    body: JSON.stringify({ targetStatus }),
+  })
+}
+
+export async function publishExamWorkflow(examId: number) {
+  return request<Exam>(`/exams/${examId}/publish`, { method: 'POST' })
+}
+
+export async function unpublishExamWorkflow(examId: number, reason: string) {
+  return request<Exam>(`/exams/${examId}/unpublish`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function removeExam(examId: number, reason?: string) {
+  return request<Exam>(`/exams/${examId}`, {
+    method: 'DELETE',
+    body: JSON.stringify(reason ? { reason } : {}),
+  })
 }
 
 export async function listMarkingTasks(params?: {
@@ -264,13 +482,7 @@ export async function reopenMarkingTask(taskId: number, reason: string) {
 }
 
 export async function getMarkingTaskDetail(taskId: number) {
-  return request<{
-    id: number
-    status: MarkingTaskStatus
-    examSubjectId: number
-    entries: Array<{ id: number; studentId: number; finalSubmitted: boolean }>
-    progress: { totalStudents: number; submittedStudents: number }
-  }>(`/marking/tasks/${taskId}/detail`)
+  return request<MarkingTaskDetail>(`/marking/tasks/${taskId}/detail`)
 }
 
 export async function getMarkingExamSubjectProgress(examSubjectId: number) {
@@ -376,6 +588,20 @@ export async function uploadFileMetadata(payload: {
   })
 }
 
+/** 新建空答题卡模板（落库 + 占位文件），返回 `fileId` 供设计页使用 */
+export async function createAnswerSheetTemplate(body?: { fileName?: string }) {
+  return request<{
+    fileId: number
+    objectKey: string
+    fileName: string
+    size: number
+    contentType: string
+  }>('/files/answer-sheet-template', {
+    method: 'POST',
+    body: JSON.stringify(body ?? {}),
+  })
+}
+
 export async function uploadFileBinary(payload: {
   file: File
   category: FileCategory
@@ -412,6 +638,64 @@ export async function getFilePresignedUrl(fileId: number, expiresIn = 300) {
 
 export async function deleteFile(fileId: number) {
   return request<FileAsset>(`/files/${fileId}`, { method: 'DELETE' })
+}
+
+export async function patchFile(
+  fileId: number,
+  body: { fileName?: string; sheetLayout?: unknown },
+) {
+  return request<FileAsset>(`/files/${fileId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function listFiles(params?: {
+  page?: number
+  pageSize?: number
+  category?: FileCategory
+  keyword?: string
+  onlyMine?: boolean
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.category) search.set('category', params.category)
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.onlyMine === true) search.set('onlyMine', 'true')
+  const query = search.toString()
+  return request<{ list: FileAsset[]; total: number; page: number; pageSize: number }>(
+    `/files${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function listUsers(params?: {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  role?: UserRole
+  status?: EntityStatus
+}) {
+  const search = new URLSearchParams()
+  if (params?.page) search.set('page', String(params.page))
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize))
+  if (params?.keyword) search.set('keyword', params.keyword)
+  if (params?.role) search.set('role', params.role)
+  if (params?.status) search.set('status', params.status)
+  const query = search.toString()
+  return request<{ list: OrgUser[]; total: number; page: number; pageSize: number }>(
+    `/users${query ? `?${query}` : ''}`,
+  )
+}
+
+export async function updateUser(
+  id: number,
+  payload: { realName?: string; phone?: string; role?: UserRole; status?: EntityStatus },
+) {
+  return request<OrgUser>(`/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function listAuditLogs(params?: {

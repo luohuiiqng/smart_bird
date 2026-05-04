@@ -34,6 +34,7 @@ export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}
 
   @Get()
+  @Roles(UserRole.SYSTEM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Query() query: QueryExamsDto,
@@ -50,6 +51,7 @@ export class ExamsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.SYSTEM_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER)
   async detail(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('id', ParseIntPipe) id: number,

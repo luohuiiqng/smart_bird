@@ -53,6 +53,18 @@ export class ExamsService {
         orderBy: { id: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          examSubjects: {
+            include: {
+              subject: { select: { id: true, name: true, shortName: true } },
+            },
+          },
+          examClasses: {
+            include: {
+              class: { select: { id: true, name: true, gradeId: true } },
+            },
+          },
+        },
       }),
       this.prisma.exam.count({ where }),
     ]);
@@ -373,7 +385,11 @@ export class ExamsService {
     if (currentUser.role === UserRole.SYSTEM_ADMIN) {
       return undefined;
     }
-    if (currentUser.role === UserRole.SCHOOL_ADMIN && currentUser.schoolId) {
+    if (
+      (currentUser.role === UserRole.SCHOOL_ADMIN ||
+        currentUser.role === UserRole.TEACHER) &&
+      currentUser.schoolId
+    ) {
       return currentUser.schoolId;
     }
     throw new ForbiddenException('EXAM_403');
@@ -391,7 +407,8 @@ export class ExamsService {
       return;
     }
     if (
-      currentUser.role === UserRole.SCHOOL_ADMIN &&
+      (currentUser.role === UserRole.SCHOOL_ADMIN ||
+        currentUser.role === UserRole.TEACHER) &&
       currentUser.schoolId === schoolId
     ) {
       return;

@@ -11,9 +11,9 @@ async function main() {
   const systemAdminPassword =
     process.env.SEED_SYSTEM_ADMIN_PASSWORD ?? 'Sysadmin123';
 
-  const schoolAdminUsername = process.env.SEED_SCHOOL_ADMIN_USERNAME ?? 'schooladmin';
+  const schoolAdminUsername = process.env.SEED_SCHOOL_ADMIN_USERNAME ?? 'THZDXX01';
   const schoolAdminPassword =
-    process.env.SEED_SCHOOL_ADMIN_PASSWORD ?? 'Schooladmin123';
+    process.env.SEED_SCHOOL_ADMIN_PASSWORD ?? '666888';
 
   const school = await prisma.school.upsert({
     where: { code: schoolCode },

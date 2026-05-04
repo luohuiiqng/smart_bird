@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { EntityStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtPayload } from '../common/types/auth-user';
@@ -132,16 +133,33 @@ export class AuthService {
     return true;
   }
 
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('AUTH_401');
+    }
+    const okPwd = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!okPwd) {
+      throw new UnauthorizedException('AUTH_401');
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: await argon2.hash(dto.newPassword),
+        refreshTokenHash: null,
+      },
+    });
+    return true;
+  }
+
   async me(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        schoolId: true,
-        username: true,
-        realName: true,
-        role: true,
-        status: true,
+      include: {
+        school: { select: { name: true } },
       },
     });
 
@@ -149,7 +167,15 @@ export class AuthService {
       throw new UnauthorizedException('AUTH_401');
     }
 
-    return user;
+    return {
+      id: user.id,
+      schoolId: user.schoolId,
+      username: user.username,
+      realName: user.realName,
+      role: user.role,
+      status: user.status,
+      schoolName: user.school?.name ?? null,
+    };
   }
 
   private async issueTokens(payload: JwtPayload) {

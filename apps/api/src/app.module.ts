@@ -1,42 +1,50 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { join } from 'node:path';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { SchoolsModule } from './schools/schools.module';
-import { OrgModule } from './org/org.module';
-import { ExamsModule } from './exams/exams.module';
-import { MarkingModule } from './marking/marking.module';
-import { ScoresModule } from './scores/scores.module';
-import { AnalysisModule } from './analysis/analysis.module';
-import { FilesModule } from './files/files.module';
-import { AuditModule } from './audit/audit.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PrismaModule } from './database/prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { ClassesModule } from './modules/classes/classes.module';
+import { QuestionsModule } from './modules/questions/questions.module';
+import { PapersModule } from './modules/papers/papers.module';
+import { ExamsModule } from './modules/exams/exams.module';
+import { GradingModule } from './modules/grading/grading.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AiModule } from './modules/ai/ai.module';
+import { SystemModule } from './modules/system/system.module';
+import { CacheModule } from './cache/cache.module';
+import { QueueModule } from './queue/queue.module';
+import { StorageModule } from './storage/storage.module';
+import { WebsocketsModule } from './websockets/websockets.module';
 
 @Module({
   imports: [
+    // 配置模块
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [
-        join(__dirname, '../../..', '.env'),
-        join(__dirname, '..', '.env'),
-      ],
+      envFilePath: '.env',
+      cache: true,
     }),
+
+    // 核心基础设施
     PrismaModule,
+    CacheModule,
+    QueueModule,
+    StorageModule,
+    WebsocketsModule,
+
+    // 业务模块
     AuthModule,
     UsersModule,
-    SchoolsModule,
-    OrgModule,
+    ClassesModule,
+    QuestionsModule,
+    PapersModule,
     ExamsModule,
-    MarkingModule,
-    ScoresModule,
-    AnalysisModule,
-    FilesModule,
-    AuditModule,
+    GradingModule,
+    AnalyticsModule,
+    NotificationsModule,
+    AiModule,
+    SystemModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

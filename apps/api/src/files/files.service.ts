@@ -6,10 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, UserRole } from '@prisma/client';
+import { FileCategory, Prisma, UserRole } from '@prisma/client';
 import { Client as MinioClient } from 'minio';
 import type { AuthenticatedUser } from '../common/types/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueryFilesDto } from './dto/query-files.dto';
+import { CreateAnswerSheetTemplateDto } from './dto/create-answer-sheet-template.dto';
+import { UpdateFilePatchDto } from './dto/update-file-patch.dto';
 import { UploadBinaryFileDto } from './dto/upload-binary-file.dto';
 import { UploadFileDto } from './dto/upload-file.dto';
 
@@ -79,9 +82,204 @@ export class FilesService {
     };
   }
 
+  async list(currentUser: AuthenticatedUser, query: QueryFilesDto) {
+    const schoolId = this.requireSchoolScope(currentUser);
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const where: Prisma.FileAssetWhereInput = {
+      schoolId,
+      deletedAt: null,
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.keyword
+        ? {
+            fileName: { contains: query.keyword.trim(), mode: 'insensitive' },
+          }
+        : {}),
+      ...(query.onlyMine === true ? { uploaderId: currentUser.id } : {}),
+    };
+
+    const [list, total] = await this.prisma.$transaction([
+      this.prisma.fileAsset.findMany({
+        where,
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          schoolId: true,
+          uploaderId: true,
+          category: true,
+          objectKey: true,
+          fileName: true,
+          contentType: true,
+          size: true,
+          bizType: true,
+          bizId: true,
+          createdAt: true,
+          updatedAt: true,
+          uploader: {
+            select: { realName: true, username: true },
+          },
+          school: {
+            select: { name: true },
+          },
+        },
+      }),
+      this.prisma.fileAsset.count({ where }),
+    ]);
+
+    return { list, total, page, pageSize };
+  }
+
   async detail(currentUser: AuthenticatedUser, fileId: number) {
     const file = await this.mustGetFile(currentUser, fileId);
     return file;
+  }
+
+  async patchFile(
+    currentUser: AuthenticatedUser,
+    fileId: number,
+    dto: UpdateFilePatchDto,
+  ) {
+    const file = await this.mustGetFile(currentUser, fileId);
+    const hasName = dto.fileName !== undefined;
+    const hasLayout = dto.sheetLayout !== undefined;
+    if (!hasName && !hasLayout) {
+      throw new BadRequestException('FILE_400');
+    }
+
+    const data: Prisma.FileAssetUpdateInput = {};
+    let auditContent = '';
+
+    if (hasName) {
+      const nextName = dto.fileName!.trim();
+      if (!nextName) {
+        throw new BadRequestException('FILE_400');
+      }
+      if (nextName.includes('/') || nextName.includes('\\')) {
+        throw new BadRequestException('FILE_400');
+      }
+      data.fileName = nextName;
+      auditContent = `更新文件：${file.fileName} → ${nextName}`;
+    }
+
+    if (hasLayout) {
+      data.sheetLayout = dto.sheetLayout as Prisma.InputJsonValue;
+      auditContent = auditContent
+        ? `${auditContent}；同步答题卡版式 JSON`
+        : `更新答题卡版式 JSON：${file.fileName}`;
+    }
+
+    const updated = await this.prisma.fileAsset.update({
+      where: { id: fileId },
+      data,
+    });
+    await this.writeAudit({
+      schoolId: file.schoolId,
+      operatorId: currentUser.id,
+      action: 'update',
+      targetId: file.id,
+      content: auditContent || `更新文件：${file.fileName}`,
+      metadata: { objectKey: file.objectKey },
+    });
+    return updated;
+  }
+
+  /**
+   * 创建空答题卡模板：落库 `FileAsset` + MinIO 占位对象 + 默认 `sheetLayout`（与 Web 设计器 `layoutPayload` 对齐）。
+   */
+  async createAnswerSheetTemplate(
+    currentUser: AuthenticatedUser,
+    dto: CreateAnswerSheetTemplateDto,
+  ) {
+    const schoolId = this.requireSchoolScope(currentUser);
+    let baseName = dto.fileName?.trim();
+    if (!baseName) {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      baseName = `答题卡模板-${y}${m}${day}-${Date.now()}.json`;
+    }
+    if (baseName.includes('/') || baseName.includes('\\')) {
+      throw new BadRequestException('FILE_400');
+    }
+
+    const placeholderJson = JSON.stringify({
+      kind: 'answer-sheet-placeholder',
+      schemaVersion: 1,
+    });
+    const buffer = Buffer.from(placeholderJson, 'utf8');
+
+    const uploadDto = {
+      category: FileCategory.ANSWER_SHEET_TEMPLATE,
+      fileName: baseName,
+      bizType: 'sheet-design',
+      bizId: undefined as number | undefined,
+    };
+    const objectKey = this.buildObjectKey(schoolId, uploadDto);
+
+    await this.ensureBucket();
+    await this.minioClient.putObject(
+      this.minioBucket,
+      objectKey,
+      buffer,
+      buffer.length,
+      {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+    );
+
+    const defaultSheetLayout: Prisma.InputJsonValue = {
+      v: 1,
+      paper: 'A3',
+      marginMm: 10,
+      optVertical: true,
+      optHideScore: false,
+      examIdMode: 'bubble',
+      examIdLeft: false,
+      absentMark: false,
+      visualMode: 'standard',
+      showBindingHoles: false,
+      subjectPreset: 'generic',
+      totalScore: 0,
+      blocks: [],
+    };
+
+    const created = await this.prisma.fileAsset.create({
+      data: {
+        schoolId,
+        uploaderId: currentUser.id,
+        category: FileCategory.ANSWER_SHEET_TEMPLATE,
+        objectKey,
+        fileName: baseName,
+        contentType: 'application/json; charset=utf-8',
+        size: buffer.length,
+        bizType: 'sheet-design',
+        sheetLayout: defaultSheetLayout,
+      },
+    });
+
+    await this.writeAudit({
+      schoolId,
+      operatorId: currentUser.id,
+      action: 'create-answer-sheet-template',
+      targetId: created.id,
+      content: `新建答题卡模板：${baseName}`,
+      metadata: {
+        category: FileCategory.ANSWER_SHEET_TEMPLATE,
+        objectKey,
+      },
+    });
+
+    return {
+      fileId: created.id,
+      objectKey: created.objectKey,
+      fileName: created.fileName,
+      size: created.size,
+      contentType: created.contentType,
+    };
   }
 
   async uploadBinary(
